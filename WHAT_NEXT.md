@@ -34,8 +34,8 @@ Stack tecnico:
 - Splash screen animata all'avvio.
 - Layout con Sidebar e TopBar, routing tra pagine.
 - Dashboard con saldo, entrate/uscite, abbonamenti, grafici e liste recenti.
-- Transazioni: CRUD completo, filtri per tipo/categoria/mese/testo, ordinamento, paginazione, conversione valuta con `amount_eur`.
-- Abbonamenti: CRUD, riepilogo costi, notifiche di rinnovo, auto-aggiornamento date.
+- Transazioni: CRUD completo, filtri per tipo/categoria/mese/testo, ordinamento, paginazione, conversione valuta in `amount_base` con warning se il tasso non è disponibile.
+- Abbonamenti: CRUD, riepilogo costi convertito in valuta base, notifiche di rinnovo, auto-aggiornamento date.
 - Budget mensili per categoria con barre di progresso e alert.
 - Obiettivi di risparmio con progresso circolare, proiezione e confetti al completamento.
 - Report con filtri di periodo, grafici ed export CSV.
@@ -46,7 +46,8 @@ Stack tecnico:
 
 ### Note tecniche
 
-- Database SQLite in `userData/finanza.db`.
+- Database SQLite in `userData/finanza.db`; colonne `amount_base` e `conversion_warning` per transazioni e abbonamenti.
+- Servizio `electron/services/currency.ts` con cache persistente su `electron-store`, ricalcolo automatico al cambio valuta base e alla riconnessione.
 - IPC con `contextBridge` e handler separati in `electron/ipc/`.
 - `out/` e `dist/` sono ignorati da Git.
 - Progetto pubblicato su `https://github.com/ImBlue444/money-manager`.

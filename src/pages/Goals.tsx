@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
+import { ColorPicker } from '../components/ui/ColorPicker'
 import { Spinner } from '../components/ui/Spinner'
 import { useGoals } from '../hooks/useGoals'
 import { useConfetti } from '../hooks/useConfetti'
@@ -287,10 +288,7 @@ function GoalModal({
         <Input type="number" step="0.01" min="0" placeholder="Già risparmiato" value={current} onChange={(e) => setCurrent(e.target.value)} />
         <Input type="date" placeholder="Data obiettivo (opzionale)" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium">Colore</label>
-            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-full rounded-lg border border-gray-300 dark:border-gray-600" />
-          </div>
+          <ColorPicker label="Colore" value={color} onChange={setColor} />
           <div>
             <label className="mb-1 block text-xs font-medium">Icona</label>
             <select value={icon} onChange={(e) => setIcon(e.target.value)} className="h-10 w-full rounded-lg border border-gray-300 bg-white px-2 dark:border-gray-600 dark:bg-gray-800">

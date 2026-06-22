@@ -5,14 +5,16 @@ import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Modal } from '../components/ui/Modal'
+import { ColorPicker } from '../components/ui/ColorPicker'
 import { Spinner } from '../components/ui/Spinner'
 import { Badge } from '../components/ui/Badge'
 import { CategoryIcon } from '../components/ui/CategoryIcon'
 import { useSubscriptions } from '../hooks/useSubscriptions'
+import { useCurrency } from '../hooks/useCurrency'
 import { useSettings } from '../context/SettingsContext'
 import { EXPENSE_CATEGORIES, getCategory } from '../lib/categories'
-import { formatCurrency, formatDate, getMonthKey } from '../lib/formatters'
-import type { BillingCycle, Subscription } from '../types'
+import { formatConverted, formatCurrency, formatDate } from '../lib/formatters'
+import type { BillingCycle, EnrichedSubscription, Subscription } from '../types'
 import { parseISO, startOfDay, isBefore, addWeeks, addMonths, addQuarters, addYears, format } from 'date-fns'
 
 export function Subscriptions(): JSX.Element {
@@ -29,13 +31,11 @@ export function Subscriptions(): JSX.Element {
     let yearly = 0
     let saved = 0
     for (const s of data) {
-      const m = toMonthly(s.amount, s.billing_cycle)
-      const y = toYearly(s.amount, s.billing_cycle)
       if (s.is_active) {
-        monthly += m
-        yearly += y
+        monthly += s.monthly_base
+        yearly += s.yearly_base
       } else {
-        saved += m
+        saved += s.monthly_base
       }
     }
     return { monthly, yearly, saved }
@@ -145,14 +145,13 @@ function SubscriptionCard({
   onEdit,
   onDelete
 }: {
-  sub: Subscription
+  sub: EnrichedSubscription
   currency: string
   locale: string
   onEdit: (s: Subscription) => void
   onDelete: (id: number) => void
 }): JSX.Element {
   const cat = getCategory(sub.category)
-  const monthly = toMonthly(sub.amount, sub.billing_cycle)
   return (
     <Card className="group relative">
       <div className="flex items-start justify-between">
@@ -166,7 +165,7 @@ function SubscriptionCard({
           <div>
             <p className="font-medium">{sub.name}</p>
             <p className="text-xs text-gray-500">
-              {formatCurrency(sub.amount, sub.currency, locale)} / {sub.billing_cycle}
+              {formatConverted(sub.amount_base ?? sub.amount, currency, sub.amount, sub.currency, locale)} / {sub.billing_cycle}
             </p>
           </div>
         </div>
@@ -199,7 +198,15 @@ function SubscriptionCard({
         Prossimo: {formatDate(sub.next_billing_date, locale)}
       </div>
       <div className="mt-1 text-xs text-gray-400">
-        ~{formatCurrency(monthly, currency, locale)} / mese
+        ~{formatCurrency(sub.monthly_base, currency, locale)} / mese
+        {sub.conversion_warning === 1 && (
+          <span
+            title="Tasso di cambio non disponibile; verrà ricalcolato appena online"
+            className="ml-1 inline-flex items-center text-warning"
+          >
+            <AlertTriangle className="inline h-3 w-3" />
+          </span>
+        )}
       </div>
     </Card>
   )
@@ -251,11 +258,14 @@ function SubscriptionModal({ isOpen, onClose, editing, onSaved }: SubscriptionMo
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const baseCurrency = settings.base_currency || 'EUR'
+  const { rate, loading: rateLoading, convert } = useCurrency(currency, baseCurrency)
+
   React.useEffect(() => {
     if (editing) {
       setName(editing.name)
       setAmount(String(editing.amount))
-      setCurrency(editing.currency || settings.base_currency || 'EUR')
+      setCurrency(editing.currency || baseCurrency)
       setCycle(editing.billing_cycle)
       setCategory(editing.category)
       setNextDate(editing.next_billing_date)
@@ -265,7 +275,7 @@ function SubscriptionModal({ isOpen, onClose, editing, onSaved }: SubscriptionMo
     } else {
       setName('')
       setAmount('')
-      setCurrency(settings.base_currency || 'EUR')
+      setCurrency(baseCurrency)
       setCycle('monthly')
       setCategory('')
       setNextDate(new Date().toISOString().split('T')[0])
@@ -273,13 +283,24 @@ function SubscriptionModal({ isOpen, onClose, editing, onSaved }: SubscriptionMo
       setIsActive(1)
       setNotes('')
     }
-  }, [editing, isOpen, settings.base_currency])
+  }, [editing, isOpen, baseCurrency])
 
   const monthlyPreview = useMemo(() => {
     const val = Number(amount)
     if (Number.isNaN(val)) return 0
     return toMonthly(val, cycle)
   }, [amount, cycle])
+
+  const amountBase = useMemo(() => {
+    const val = Number(amount)
+    if (Number.isNaN(val)) return null
+    return convert(val)
+  }, [amount, convert])
+
+  const monthlyBasePreview = useMemo(() => {
+    const base = amountBase ?? Number(amount)
+    return toMonthly(base, cycle)
+  }, [amountBase, amount, cycle])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -290,6 +311,8 @@ function SubscriptionModal({ isOpen, onClose, editing, onSaved }: SubscriptionMo
     const payload = {
       name,
       amount: val,
+      amount_base: amountBase ?? val,
+      conversion_warning: rate ? 0 : 1,
       currency,
       billing_cycle: cycle,
       category,
@@ -363,28 +386,38 @@ function SubscriptionModal({ isOpen, onClose, editing, onSaved }: SubscriptionMo
           </Select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium">Colore</label>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300 dark:border-gray-600"
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <ColorPicker label="Colore" value={color} onChange={setColor} />
+            <div>
+              <label className="mb-1 block text-xs font-medium">Stato</label>
+              <Select value={isActive} onChange={(e) => setIsActive(Number(e.target.value))}>
+                <option value={1}>Attivo</option>
+                <option value={0}>Sospeso</option>
+              </Select>
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium">Stato</label>
-            <Select value={isActive} onChange={(e) => setIsActive(Number(e.target.value))}>
-              <option value={1}>Attivo</option>
-              <option value={0}>Sospeso</option>
-            </Select>
-          </div>
-        </div>
 
-        <div className="rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-700/50">
-          Costo mensile equivalente:{' '}
-          <strong>{formatCurrency(monthlyPreview, currency, settings.locale || 'it-IT')}</strong>
+        <div className={`rounded-lg p-3 text-sm ${rate || currency === baseCurrency ? 'bg-gray-50 dark:bg-gray-700/50' : 'bg-warning/10 text-warning'}`}>
+          {rateLoading ? (
+            'Caricamento tasso...'
+          ) : currency === baseCurrency || rate ? (
+            <>
+              Costo mensile equivalente:{' '}
+              <strong>{formatCurrency(monthlyBasePreview, baseCurrency, settings.locale || 'it-IT')}</strong>
+              {currency !== baseCurrency && rate && (
+                <span className="block text-xs text-gray-500">
+                  1 {currency} = {rate} {baseCurrency}
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1 font-medium">
+                <AlertTriangle className="h-4 w-4" /> Tasso di cambio non disponibile
+              </span>
+              <span className="text-xs">Salverò l’abbonamento e lo ricalcolerò automaticamente appena torni online.</span>
+            </>
+          )}
         </div>
 
         <div>

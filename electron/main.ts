@@ -14,6 +14,7 @@ import { registerGoalIpc } from './ipc/goals'
 import { registerSettingsIpc } from './ipc/settings'
 import { registerSystemIpc } from './ipc/system'
 import { registerAiIpc } from './ipc/ai'
+import { recalculateWarnings, setLastBaseCurrency } from './services/currency'
 import { parseISO, isBefore, startOfDay, addWeeks, addMonths, addQuarters, addYears, format } from 'date-fns'
 import type { BillingCycle, Subscription } from '../src/types'
 
@@ -124,12 +125,15 @@ function registerIpc(): void {
   registerAiIpc()
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   applyTheme()
   updateSubscriptionDates()
   registerIpc()
+  const baseCurrency = (getSetting('base_currency') ?? 'EUR') as string
+  setLastBaseCurrency(baseCurrency)
   createWindow()
   notifyUpcomingRenewals()
+  recalculateWarnings().catch((e) => console.error('recalculateWarnings error', e))
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

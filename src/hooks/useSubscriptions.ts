@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Subscription } from '../types'
+import type { EnrichedSubscription } from '../types'
 
 export function useSubscriptions() {
-  const [data, setData] = useState<Subscription[]>([])
+  const [data, setData] = useState<EnrichedSubscription[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

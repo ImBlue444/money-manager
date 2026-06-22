@@ -25,7 +25,8 @@ function initSchema(): void {
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       amount REAL NOT NULL,
-      amount_eur REAL NOT NULL DEFAULT 0,
+      amount_base REAL NOT NULL DEFAULT 0,
+      conversion_warning INTEGER DEFAULT 0,
       type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
       category TEXT NOT NULL,
       description TEXT,
@@ -38,6 +39,8 @@ function initSchema(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       amount REAL NOT NULL,
+      amount_base REAL,
+      conversion_warning INTEGER DEFAULT 0,
       currency TEXT DEFAULT 'EUR',
       billing_cycle TEXT NOT NULL CHECK(billing_cycle IN ('weekly', 'monthly', 'quarterly', 'yearly')),
       category TEXT NOT NULL,
@@ -75,14 +78,38 @@ function initSchema(): void {
     );
   `)
 
-  // Migration: add amount_eur if missing
-  const columns = db
+  // Migration: rename legacy amount_base -> amount_base and add conversion_warning
+  const txColumns = db
     .prepare(`SELECT name FROM pragma_table_info('transactions')`)
     .all() as Array<{ name: string }>
-  if (!columns.some((c) => c.name === 'amount_eur')) {
-    db.exec(`ALTER TABLE transactions ADD COLUMN amount_eur REAL NOT NULL DEFAULT 0`)
-    db.exec(`UPDATE transactions SET amount_eur = amount WHERE amount_eur = 0`)
+  const hasAmountBase = txColumns.some((c) => c.name === 'amount_base')
+  const hasAmountEur = txColumns.some((c) => c.name === 'amount_base')
+  if (!hasAmountBase && hasAmountEur) {
+    db.exec(`ALTER TABLE transactions RENAME COLUMN amount_base TO amount_base`)
+  } else if (!hasAmountBase) {
+    db.exec(`ALTER TABLE transactions ADD COLUMN amount_base REAL NOT NULL DEFAULT 0`)
+    db.exec(`UPDATE transactions SET amount_base = amount WHERE amount_base = 0`)
   }
+  if (!txColumns.some((c) => c.name === 'conversion_warning')) {
+    db.exec(`ALTER TABLE transactions ADD COLUMN conversion_warning INTEGER DEFAULT 0`)
+  }
+
+  const subColumns = db
+    .prepare(`SELECT name FROM pragma_table_info('subscriptions')`)
+    .all() as Array<{ name: string }>
+  if (!subColumns.some((c) => c.name === 'amount_base')) {
+    db.exec(`ALTER TABLE subscriptions ADD COLUMN amount_base REAL`)
+  }
+  if (!subColumns.some((c) => c.name === 'conversion_warning')) {
+    db.exec(`ALTER TABLE subscriptions ADD COLUMN conversion_warning INTEGER DEFAULT 0`)
+  }
+  const baseCurrency = (getSetting('base_currency') ?? 'EUR') as string
+  db.prepare(
+    `UPDATE subscriptions
+     SET amount_base = amount,
+         conversion_warning = CASE WHEN currency != ? THEN 1 ELSE 0 END
+     WHERE amount_base IS NULL`
+  ).run(baseCurrency)
 
   // Default settings
   const defaults: Partial<SettingsMap> = {
@@ -161,12 +188,13 @@ export function getTransactions(filters: TransactionFilters = {}): Transaction[]
 export function addTransaction(data: Omit<Transaction, 'id' | 'created_at'>): { id: number } {
   const res = db
     .prepare(
-      `INSERT INTO transactions (amount, amount_eur, type, category, description, date, currency)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO transactions (amount, amount_base, conversion_warning, type, category, description, date, currency)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.amount,
-      data.amount_eur,
+      data.amount_base,
+      data.conversion_warning ?? 0,
       data.type,
       data.category,
       data.description ?? '',
@@ -214,8 +242,8 @@ export function getMonthlyTotals(month: string): { income: number; expense: numb
   const row = db
     .prepare(
       `SELECT
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount_eur ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_eur ELSE 0 END), 0) AS expense
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount_base ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_base ELSE 0 END), 0) AS expense
       FROM transactions
       WHERE strftime('%Y-%m', date) = ?`
     )
@@ -226,7 +254,7 @@ export function getMonthlyTotals(month: string): { income: number; expense: numb
 export function getSpendingByCategory(month: string): Array<{ category: string; amount: number }> {
   return db
     .prepare(
-      `SELECT category, SUM(amount_eur) AS amount
+      `SELECT category, SUM(amount_base) AS amount
        FROM transactions
        WHERE type = 'expense' AND strftime('%Y-%m', date) = ?
        GROUP BY category
@@ -240,7 +268,7 @@ export function getBalanceTrend(months = 6): Array<{ month: string; balance: num
   const rows = db
     .prepare(
       `SELECT strftime('%Y-%m', date) AS month,
-        SUM(CASE WHEN type = 'income' THEN amount_eur ELSE -amount_eur END) AS net
+        SUM(CASE WHEN type = 'income' THEN amount_base ELSE -amount_base END) AS net
       FROM transactions
       WHERE date >= date('now', '-${months} months', 'start of month')
       GROUP BY month
@@ -263,8 +291,8 @@ export function getIncomeExpenseHistory(months = 12): Array<{
   return db
     .prepare(
       `SELECT strftime('%Y-%m', date) AS month,
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount_eur ELSE 0 END), 0) AS income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_eur ELSE 0 END), 0) AS expense
+        COALESCE(SUM(CASE WHEN type = 'income' THEN amount_base ELSE 0 END), 0) AS income,
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_base ELSE 0 END), 0) AS expense
       FROM transactions
       WHERE date >= date('now', '-${months} months', 'start of month')
       GROUP BY month
@@ -278,7 +306,7 @@ export function getCategoryTrend(
 ): Array<{ month: string; category: string; amount: number }> {
   return db
     .prepare(
-      `SELECT strftime('%Y-%m', date) AS month, category, SUM(amount_eur) AS amount
+      `SELECT strftime('%Y-%m', date) AS month, category, SUM(amount_base) AS amount
       FROM transactions
       WHERE type = 'expense' AND date >= date('now', '-${months} months', 'start of month')
       GROUP BY month, category
@@ -294,9 +322,9 @@ export function getCategorySummary(
   return db
     .prepare(
       `SELECT category,
-        SUM(amount_eur) AS amount,
+        SUM(amount_base) AS amount,
         COUNT(*) AS count,
-        AVG(amount_eur) AS avg
+        AVG(amount_base) AS avg
       FROM transactions
       WHERE type = 'expense' AND date >= ? AND date <= ?
       GROUP BY category
@@ -314,12 +342,14 @@ export function addSubscription(data: Omit<Subscription, 'id' | 'created_at'>): 
   const res = db
     .prepare(
       `INSERT INTO subscriptions
-       (name, amount, currency, billing_cycle, category, next_billing_date, color, icon, is_active, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (name, amount, amount_base, conversion_warning, currency, billing_cycle, category, next_billing_date, color, icon, is_active, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       data.name,
       data.amount,
+      data.amount_base,
+      data.conversion_warning ?? 0,
       data.currency ?? 'EUR',
       data.billing_cycle,
       data.category,
@@ -390,7 +420,7 @@ export function getBudgetWithSpending(month: string): Array<{
   const spentMap = new Map<string, number>()
   const rows = db
     .prepare(
-      `SELECT category, SUM(amount_eur) AS spent
+      `SELECT category, SUM(amount_base) AS spent
        FROM transactions
        WHERE type = 'expense' AND strftime('%Y-%m', date) = ?
        GROUP BY category`
@@ -458,15 +488,19 @@ export function importBackup(data: BackupData): void {
     db.exec('DELETE FROM subscriptions')
     db.exec('DELETE FROM budget')
     db.exec('DELETE FROM goals')
+    const baseCurrency = (getSetting('base_currency') ?? 'EUR') as string
     const insertTx = db.prepare(
-      `INSERT INTO transactions (id, amount, amount_eur, type, category, description, date, currency, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO transactions (id, amount, amount_base, conversion_warning, type, category, description, date, currency, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     for (const t of data.transactions) {
+      const raw = t as any
+      const baseAmount = raw.amount_base ?? raw.amount_eur ?? t.amount
       insertTx.run(
         t.id,
         t.amount,
-        t.amount_eur ?? t.amount,
+        baseAmount,
+        raw.conversion_warning ?? 0,
         t.type,
         t.category,
         t.description ?? '',
@@ -476,14 +510,19 @@ export function importBackup(data: BackupData): void {
       )
     }
     const insertSub = db.prepare(
-      `INSERT INTO subscriptions (id, name, amount, currency, billing_cycle, category, next_billing_date, color, icon, is_active, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO subscriptions (id, name, amount, amount_base, conversion_warning, currency, billing_cycle, category, next_billing_date, color, icon, is_active, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     for (const s of data.subscriptions) {
+      const raw = s as any
+      const baseAmount = raw.amount_base ?? s.amount
+      const warning = raw.conversion_warning ?? (s.currency && s.currency !== baseCurrency ? 1 : 0)
       insertSub.run(
         s.id,
         s.name,
         s.amount,
+        baseAmount,
+        warning,
         s.currency ?? 'EUR',
         s.billing_cycle,
         s.category,

@@ -5,7 +5,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { Button } from '../components/ui/Button'
 import { useSettings } from '../context/SettingsContext'
 import type { DashboardSummary, Subscription, Transaction } from '../types'
-import { formatCurrency, formatShortDate, getMonthKey, monthLabel } from '../lib/formatters'
+import { formatConverted, formatCurrency, formatShortDate, getMonthKey, monthLabel } from '../lib/formatters'
 import {
   TrendingUp,
   TrendingDown,
@@ -250,7 +250,7 @@ function TransactionRow({
         <p className="text-xs text-gray-500">{formatShortDate(tx.date, locale)}</p>
       </div>
       <span className={`text-sm font-semibold ${isIncome ? 'text-income' : 'text-expense'}`}>
-        {isIncome ? '+' : '-'} {formatCurrency(tx.amount_eur, currency, locale)}
+        {isIncome ? '+' : '-'} {formatConverted(tx.amount_base, currency, tx.amount, tx.currency, locale)}
       </span>
     </div>
   )

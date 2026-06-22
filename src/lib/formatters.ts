@@ -5,6 +5,19 @@ export function formatCurrency(amount: number, currency = 'EUR', locale = 'it-IT
   }).format(amount)
 }
 
+export function formatConverted(
+  amountBase: number,
+  baseCurrency: string,
+  amountOriginal: number,
+  originalCurrency: string,
+  locale = 'it-IT'
+): string {
+  const base = formatCurrency(amountBase, baseCurrency, locale)
+  if (originalCurrency === baseCurrency) return base
+  const original = formatCurrency(amountOriginal, originalCurrency, locale)
+  return `${base} (${original})`
+}
+
 export function formatDate(dateStr: string, locale = 'it-IT'): string {
   const date = new Date(dateStr + 'T00:00:00')
   return date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })

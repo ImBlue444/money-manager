@@ -102,6 +102,7 @@ export function Settings(): JSX.Element {
       return
     }
     const modelToSave = effectiveModel
+    const baseCurrencyChanged = settings.base_currency !== currency
     await Promise.all([
       updateSetting('username', username),
       updateSetting('base_currency', currency),
@@ -113,6 +114,9 @@ export function Settings(): JSX.Element {
       updateSetting('ai_auto_insight', String(aiAutoInsight)),
       window.api.saveAiApiKey(aiProvider, aiApiKey)
     ])
+    if (baseCurrencyChanged) {
+      await window.api.recalculateCurrency(currency)
+    }
     alert('Impostazioni salvate')
   }
 

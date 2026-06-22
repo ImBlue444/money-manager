@@ -3,10 +3,11 @@ export type TransactionType = 'income' | 'expense'
 export interface Transaction {
   id: number
   amount: number
-  amount_eur: number
+  amount_base: number
+  conversion_warning: number
   type: TransactionType
   category: string
-  description: string
+  description: string | null
   date: string
   currency: string
   created_at: string
@@ -18,6 +19,8 @@ export interface Subscription {
   id: number
   name: string
   amount: number
+  amount_base?: number
+  conversion_warning: number
   currency: string
   billing_cycle: BillingCycle
   category: string
@@ -27,6 +30,13 @@ export interface Subscription {
   is_active: number
   notes: string
   created_at: string
+}
+
+export interface EnrichedSubscription extends Subscription {
+  monthly_base: number
+  yearly_base: number
+  monthly_original: number
+  yearly_original: number
 }
 
 export interface Budget {
@@ -107,7 +117,7 @@ export interface Api {
   getTransactionMonths: () => Promise<string[]>
 
   // Subscriptions
-  getSubscriptions: () => Promise<Subscription[]>
+  getSubscriptions: () => Promise<EnrichedSubscription[]>
   addSubscription: (data: Omit<Subscription, 'id' | 'created_at'>) => Promise<{ id: number }>
   updateSubscription: (id: number, data: Partial<Omit<Subscription, 'id' | 'created_at'>>) => Promise<void>
   deleteSubscription: (id: number) => Promise<void>
@@ -144,6 +154,7 @@ export interface Api {
 
   // Currency
   getExchangeRate: (from: string, to: string) => Promise<ExchangeRateResult>
+  recalculateCurrency: (newBase: string) => Promise<void>
 
   // Backup
   exportBackup: () => Promise<BackupData>

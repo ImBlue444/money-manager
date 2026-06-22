@@ -15,6 +15,7 @@ import {
   getSpendingByCategory,
   getTransactions
 } from './db'
+import { convertSync, fetchRatesToBase } from '../../electron/services/currency'
 import type { AiPeriod, Subscription } from '../types'
 
 export function getPeriodDates(period: AiPeriod): { from: string; to: string; label: string } {
@@ -116,13 +117,18 @@ export async function buildFinancialContext(period: AiPeriod): Promise<string> {
   const txInPeriod = getTransactions({}).filter((t) => t.date >= from && t.date <= to)
   const spendingMap = new Map<string, number>()
   for (const t of txInPeriod.filter((t) => t.type === 'expense')) {
-    spendingMap.set(t.category, (spendingMap.get(t.category) || 0) + t.amount_eur)
+    spendingMap.set(t.category, (spendingMap.get(t.category) || 0) + t.amount_base)
   }
   const spending = Array.from(spendingMap.entries())
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount)
   const subs = getActiveSubscriptions()
-  const monthlySubscriptions = subs.reduce((sum, s) => sum + toMonthly(s.amount, s.billing_cycle), 0)
+  const subCurrencies = [...new Set(subs.map((s) => s.currency))]
+  await fetchRatesToBase(currency, subCurrencies)
+  const monthlySubscriptions = subs.reduce((sum, s) => {
+    const monthly = toMonthly(s.amount, s.billing_cycle)
+    return sum + (convertSync(monthly, s.currency, currency) ?? monthly)
+  }, 0)
   const budgets = getBudgetWithSpending(format(new Date(), 'yyyy-MM'))
   const goals = getGoals()
 
@@ -139,7 +145,14 @@ export async function buildFinancialContext(period: AiPeriod): Promise<string> {
     '',
     'ABBUONAMENTI ATTIVI:',
     `Costo mensile totale abbonamenti: ${currency} ${monthlySubscriptions.toFixed(2)}.`,
-    subs.map((s) => `- ${s.name}: ${currency} ${s.amount.toFixed(2)} / ${s.billing_cycle}`).join('\n') || 'Nessun abbonamento attivo.',
+    subs
+      .map((s) => {
+        const monthly = toMonthly(s.amount, s.billing_cycle)
+        const converted = convertSync(monthly, s.currency, currency) ?? monthly
+        const original = `${s.amount.toFixed(2)} ${s.currency}`
+        return `- ${s.name}: ${currency} ${converted.toFixed(2)} / mese (${original} / ${s.billing_cycle})`
+      })
+      .join('\n') || 'Nessun abbonamento attivo.',
     '',
     'TOP CATEGORIE DI SPESA:',
     spending

@@ -2,6 +2,12 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from 'electron'
 import fs from 'node:fs'
 import { format } from 'date-fns'
 import {
+  convertSync,
+  fetchRate,
+  fetchRatesToBase,
+  recalculateAll
+} from '../services/currency'
+import {
   exportBackup,
   getActiveSubscriptions,
   getBalanceTrend,
@@ -22,9 +28,6 @@ import type {
   ElectronSaveDialogOptions,
   Transaction
 } from '../../src/types'
-
-const rateCache = new Map<string, { rate: number; date: string; timestamp: number }>()
-const RATE_TTL = 30 * 60 * 1000
 
 function getMainWindow(): BrowserWindow | undefined {
   return BrowserWindow.getAllWindows()[0]
@@ -92,21 +95,21 @@ export function registerSystemIpc(): void {
   ipcMain.handle('currency:getRate', async (_event, from: string, to: string) => {
     try {
       if (from === to) return { rate: 1, date: format(new Date(), 'yyyy-MM-dd') }
-      const cacheKey = `${from}-${to}`
-      const cached = rateCache.get(cacheKey)
-      if (cached && Date.now() - cached.timestamp < RATE_TTL) {
-        return { rate: cached.rate, date: cached.date }
-      }
-      const res = await fetch(`https://api.frankfurter.app/latest?from=${from}&to=${to}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = (await res.json()) as { rates: Record<string, number>; date: string }
-      const rate = data.rates[to]
-      if (rate === undefined) throw new Error('Tasso non disponibile')
-      rateCache.set(cacheKey, { rate, date: data.date, timestamp: Date.now() })
-      return { rate, date: data.date }
+      const rate = await fetchRate(from, to)
+      if (rate === null) throw new Error('Tasso non disponibile')
+      return { rate }
     } catch (e) {
       console.error('currency:getRate error', e)
       return { rate: null, error: 'Impossibile ottenere il tasso di cambio' }
+    }
+  })
+
+  ipcMain.handle('currency:recalculate', async (_event, newBase: string) => {
+    try {
+      await recalculateAll(newBase)
+    } catch (e) {
+      console.error('currency:recalculate error', e)
+      throw e
     }
   })
 
@@ -182,7 +185,7 @@ export function registerSystemIpc(): void {
       filters: [{ name: 'CSV', extensions: ['csv'] }]
     })
     if (result.canceled || !result.filePath) return
-    const headers = ['id', 'date', 'type', 'category', 'description', 'amount', 'currency', 'amount_eur']
+    const headers = ['id', 'date', 'type', 'category', 'description', 'amount', 'currency', 'amount_base', 'conversion_warning']
     const lines = [
       headers.join(','),
       ...rows.map((r) =>
@@ -194,19 +197,26 @@ export function registerSystemIpc(): void {
           `"${(r.description ?? '').replace(/"/g, '""')}"`,
           r.amount,
           r.currency,
-          r.amount_eur
+          r.amount_base,
+          r.conversion_warning
         ].join(',')
       )
     ]
     fs.writeFileSync(result.filePath, lines.join('\n'), 'utf-8')
   })
 
-  ipcMain.handle('dashboard:summary', (_event, month: string) => {
+  ipcMain.handle('dashboard:summary', async (_event, month: string) => {
     try {
       const starting = Number(getSetting('starting_balance') ?? '0')
+      const baseCurrency = (getSetting('base_currency') ?? 'EUR') as string
       const totals = getMonthlyTotals(month)
       const subs = getActiveSubscriptions()
-      const monthlySubscriptionCost = subs.reduce((sum, s) => sum + toMonthly(s.amount, s.billing_cycle), 0)
+      const currencies = [...new Set(subs.map((s) => s.currency))]
+      await fetchRatesToBase(baseCurrency, currencies)
+      const monthlySubscriptionCost = subs.reduce((sum, s) => {
+        const monthly = toMonthly(s.amount, s.billing_cycle)
+        return sum + (convertSync(monthly, s.currency, baseCurrency) ?? monthly)
+      }, 0)
       return {
         balance: starting + totals.income - totals.expense,
         income: totals.income,

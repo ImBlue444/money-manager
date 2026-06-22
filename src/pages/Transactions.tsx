@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, ArrowUpDown, ChevronLeft, ChevronRight, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -12,7 +12,7 @@ import { useTransactions } from '../hooks/useTransactions'
 import { useCurrency } from '../hooks/useCurrency'
 import { useSettings } from '../context/SettingsContext'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategory } from '../lib/categories'
-import { formatCurrency, formatDate, getMonthKey, monthLabel } from '../lib/formatters'
+import { formatConverted, formatCurrency, formatDate, getMonthKey, monthLabel } from '../lib/formatters'
 import type { Transaction, TransactionType } from '../types'
 
 export function Transactions(): JSX.Element {
@@ -60,7 +60,7 @@ export function Transactions(): JSX.Element {
       if (sortKey === 'date') {
         cmp = a.date.localeCompare(b.date)
       } else if (sortKey === 'amount') {
-        cmp = a.amount_eur - b.amount_eur
+        cmp = a.amount_base - b.amount_base
       }
       return sortOrder === 'asc' ? cmp : -cmp
     })
@@ -197,11 +197,11 @@ export function Transactions(): JSX.Element {
                   </td>
                   <td className="px-4 py-3">
                     <span className={tx.type === 'income' ? 'text-income' : 'text-expense'}>
-                      {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount_eur, currency, locale)}
+                      {tx.type === 'income' ? '+' : '-'} {formatConverted(tx.amount_base, currency, tx.amount, tx.currency, locale)}
                     </span>
-                    {tx.currency !== currency && (
-                      <span className="ml-2 text-xs text-gray-400">
-                        ({formatCurrency(tx.amount, tx.currency, locale)})
+                    {tx.conversion_warning === 1 && (
+                      <span title="Tasso di cambio non disponibile al salvataggio; verrà ricalcolato appena online">
+                        <AlertTriangle className="ml-1 inline h-3.5 w-3.5 text-warning" />
                       </span>
                     )}
                   </td>
@@ -323,7 +323,7 @@ function TransactionModal({ isOpen, onClose, editing, onSaved }: TransactionModa
 
   const categories = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
 
-  const amountEur = useMemo(() => {
+  const amountBase = useMemo(() => {
     const val = Number(amount)
     if (Number.isNaN(val)) return null
     return convert(val)
@@ -339,7 +339,8 @@ function TransactionModal({ isOpen, onClose, editing, onSaved }: TransactionModa
     setSaving(true)
     const payload = {
       amount: val,
-      amount_eur: amountEur ?? val,
+      amount_base: amountBase ?? val,
+      conversion_warning: rate ? 0 : 1,
       type,
       category,
       description,
@@ -412,17 +413,22 @@ function TransactionModal({ isOpen, onClose, editing, onSaved }: TransactionModa
         </div>
 
         {currency !== baseCurrency && (
-          <div className="rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-700/50">
+          <div className={`rounded-lg p-3 text-sm ${rate && !rateLoading ? 'bg-gray-50 dark:bg-gray-700/50' : 'bg-warning/10 text-warning'}`}>
             {rateLoading ? (
               'Caricamento tasso...'
             ) : rate ? (
               <>
                 Tasso: 1 {currency} = {rate} {baseCurrency}
                 <br />
-                Controvalore: {formatCurrency(amountEur ?? Number(amount) * (rate || 1), baseCurrency, settings.locale || 'it-IT')}
+                Controvalore: {formatCurrency(amountBase ?? Number(amount) * (rate || 1), baseCurrency, settings.locale || 'it-IT')}
               </>
             ) : (
-              'Impossibile ottenere il tasso di cambio'
+              <>
+                <span className="flex items-center gap-1 font-medium">
+                  <AlertTriangle className="h-4 w-4" /> Tasso di cambio non disponibile
+                </span>
+                <span className="text-xs">Salverò l’importo e lo ricalcolerò automaticamente appena torni online.</span>
+              </>
             )}
           </div>
         )}

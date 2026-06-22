@@ -60,6 +60,7 @@ const api: Api = {
 
   // Currency
   getExchangeRate: (from, to) => ipcRenderer.invoke('currency:getRate', from, to),
+  recalculateCurrency: (newBase) => ipcRenderer.invoke('currency:recalculate', newBase),
 
   // Backup / reset
   exportBackup: () => ipcRenderer.invoke('backup:export'),
