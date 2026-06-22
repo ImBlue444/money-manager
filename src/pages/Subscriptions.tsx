@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Calendar, CreditCard, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Calendar, AlertTriangle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -7,6 +7,7 @@ import { Select } from '../components/ui/Select'
 import { Modal } from '../components/ui/Modal'
 import { ColorPicker } from '../components/ui/ColorPicker'
 import { Spinner } from '../components/ui/Spinner'
+import { Switch } from '../components/ui/Switch'
 import { Badge } from '../components/ui/Badge'
 import { CategoryIcon } from '../components/ui/CategoryIcon'
 import { useSubscriptions } from '../hooks/useSubscriptions'
@@ -62,6 +63,11 @@ export function Subscriptions(): JSX.Element {
     refetch()
   }
 
+  const handleToggle = async (id: number, isActive: boolean) => {
+    await window.api.updateSubscription(id, { is_active: isActive ? 1 : 0 })
+    refetch()
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -109,6 +115,7 @@ export function Subscriptions(): JSX.Element {
               locale={locale}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onToggle={handleToggle}
             />
           ))}
           {data.length === 0 && (
@@ -143,17 +150,19 @@ function SubscriptionCard({
   currency,
   locale,
   onEdit,
-  onDelete
+  onDelete,
+  onToggle
 }: {
   sub: EnrichedSubscription
   currency: string
   locale: string
   onEdit: (s: Subscription) => void
   onDelete: (id: number) => void
+  onToggle: (id: number, isActive: boolean) => void
 }): JSX.Element {
   const cat = getCategory(sub.category)
   return (
-    <Card className="group relative">
+    <Card className={`group relative transition-opacity ${sub.is_active ? '' : 'opacity-75'}`}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div
@@ -189,9 +198,11 @@ function SubscriptionCard({
           {cat && <CategoryIcon name={cat.icon} className="h-3 w-3" />}
           {sub.category}
         </Badge>
-        <Badge color={sub.is_active ? '#10b981' : '#6b7280'}>
-          {sub.is_active ? 'Attivo' : 'Sospeso'}
-        </Badge>
+        <Switch
+          checked={sub.is_active === 1}
+          onChange={(checked) => onToggle(sub.id, checked)}
+          label={sub.is_active ? 'Attivo' : 'Sospeso'}
+        />
       </div>
       <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
         <Calendar className="h-3.5 w-3.5" />
