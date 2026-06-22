@@ -13,6 +13,7 @@ MoneyLove — applicazione desktop per la gestione delle finanze personali, con 
 - **Recharts** (grafici)
 - **date-fns** (date)
 - **Frankfurter API** (tassi di cambio)
+- **OpenAI / Anthropic Claude** (LoveAI — richiede chiave API personale)
 
 ## Installazione
 
@@ -82,3 +83,16 @@ I pacchetti verranno generati nella cartella `dist/`.
 - Obiettivi di risparmio con proiezione
 - Report con filtri di periodo, grafici ed export CSV
 - Impostazioni, backup/restore JSON e reset dati
+- **LoveAI** — assistente AI personale per interrogare e interpretare i propri dati finanziari
+
+## LoveAI
+
+Per usare l'assistente AI:
+
+1. Vai in **Impostazioni → LoveAI**.
+2. Scegli il provider (`OpenAI` o `Anthropic Claude`).
+3. Inserisci la tua chiave API (cifrata localmente con `electron.safeStorage`).
+4. Scegli il modello, es. `gpt-4o-mini` o `claude-3-haiku-20240307`.
+5. Apri la pagina **LoveAI** dalla sidebar.
+
+> I dati finanziari aggregati vengono inviati al provider LLM scelto. Non vengono memorizzati su server di MoneyLove.

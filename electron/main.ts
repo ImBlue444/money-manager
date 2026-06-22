@@ -13,6 +13,7 @@ import { registerBudgetIpc } from './ipc/budget'
 import { registerGoalIpc } from './ipc/goals'
 import { registerSettingsIpc } from './ipc/settings'
 import { registerSystemIpc } from './ipc/system'
+import { registerAiIpc } from './ipc/ai'
 import { parseISO, isBefore, startOfDay, addWeeks, addMonths, addQuarters, addYears, format } from 'date-fns'
 import type { BillingCycle, Subscription } from '../src/types'
 
@@ -120,6 +121,7 @@ function registerIpc(): void {
   registerGoalIpc()
   registerSettingsIpc()
   registerSystemIpc()
+  registerAiIpc()
 }
 
 app.whenReady().then(() => {

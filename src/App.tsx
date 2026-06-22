@@ -14,6 +14,7 @@ import { Budget } from './pages/Budget'
 import { Goals } from './pages/Goals'
 import { Reports } from './pages/Reports'
 import { Settings } from './pages/Settings'
+import { AIAdvisor } from './pages/AIAdvisor'
 import { Onboarding } from './pages/Onboarding'
 
 function AppContent(): JSX.Element {
@@ -60,6 +61,7 @@ function AppContent(): JSX.Element {
                   <Route path="/budget" element={<Budget />} />
                   <Route path="/goals" element={<Goals />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/ai" element={<AIAdvisor />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
               </motion.div>

@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer } from 'electron'
-import type { Api } from '../src/types'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import type { AiMessage, AiPeriod, Api } from '../src/types'
 
 const api: Api = {
   // Transactions
@@ -35,6 +35,28 @@ const api: Api = {
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options),
   showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpen', options),
   getSystemLocale: () => ipcRenderer.invoke('system:getLocale'),
+
+  // AI
+  saveAiApiKey: (key: string) => ipcRenderer.invoke('ai:saveApiKey', key),
+  getAiApiKey: () => ipcRenderer.invoke('ai:getApiKey'),
+  sendAiMessage: (message: string, history: AiMessage[], period: AiPeriod) =>
+    ipcRenderer.invoke('ai:sendMessage', message, history, period),
+  onAiChunk: (callback: (chunk: string) => void) => {
+    const handler = (_event: IpcRendererEvent, chunk: string) => callback(chunk)
+    ipcRenderer.on('ai:chunk', handler)
+    return () => ipcRenderer.removeListener('ai:chunk', handler)
+  },
+  onAiDone: (callback: () => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('ai:done', handler)
+    return () => ipcRenderer.removeListener('ai:done', handler)
+  },
+  onAiError: (callback: (error: string) => void) => {
+    const handler = (_event: IpcRendererEvent, error: string) => callback(error)
+    ipcRenderer.on('ai:error', handler)
+    return () => ipcRenderer.removeListener('ai:error', handler)
+  },
+  generateInsight: (period: AiPeriod) => ipcRenderer.invoke('ai:generateInsight', period),
 
   // Currency
   getExchangeRate: (from, to) => ipcRenderer.invoke('currency:getRate', from, to),

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import { Spinner } from '../components/ui/Spinner'
+import { Button } from '../components/ui/Button'
 import { useSettings } from '../context/SettingsContext'
 import type { DashboardSummary, Subscription, Transaction } from '../types'
 import { formatCurrency, formatShortDate, getMonthKey, monthLabel } from '../lib/formatters'
@@ -9,7 +11,8 @@ import {
   TrendingDown,
   Wallet,
   RefreshCw,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react'
 import {
   LineChart,
@@ -67,9 +70,11 @@ export function Dashboard(): JSX.Element {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Dashboard</h2>
+        <h2 className="font-display text-2xl font-semibold tracking-tight">Dashboard</h2>
         <span className="text-sm text-gray-500 dark:text-gray-400">{monthLabel(month, locale)}</span>
       </div>
+
+      <AIInsight />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
@@ -242,6 +247,86 @@ function TransactionRow({
         {isIncome ? '+' : '-'} {formatCurrency(tx.amount_eur, currency, locale)}
       </span>
     </div>
+  )
+}
+
+function AIInsight(): JSX.Element {
+  const { settings } = useSettings()
+  const [insight, setInsight] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const autoInsight = settings.ai_auto_insight === 'true'
+  const hasKey = settings.ai_api_key_set === 'true'
+
+  const generate = async () => {
+    setLoading(true)
+    try {
+      const text = await window.api.generateInsight('last_month')
+      setInsight(text)
+    } catch {
+      setInsight('Impossibile generare l’insight. Controlla la chiave API.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (autoInsight && hasKey) {
+      generate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoInsight, hasKey])
+
+  if (!hasKey) {
+    return (
+      <Card className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-semibold">
+            <Sparkles className="h-5 w-5 text-primary-500" /> LoveAI
+          </h3>
+          <p className="text-sm text-gray-500">
+            Configura la tua chiave API per ricevere consigli personalizzati sulle tue finanze.
+          </p>
+        </div>
+        <Link to="/settings">
+          <Button variant="secondary" size="sm">
+            Configura
+          </Button>
+        </Link>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary-500/10 blur-2xl" />
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-semibold">
+            <Sparkles className="h-5 w-5 text-primary-500" /> LoveAI Insight
+          </h3>
+          {loading ? (
+            <p className="text-sm text-gray-500">LoveAI sta analizzando i tuoi dati...</p>
+          ) : insight ? (
+            <p className="text-sm text-gray-700 dark:text-gray-300">{insight}</p>
+          ) : autoInsight ? null : (
+            <p className="text-sm text-gray-500">
+              Genera un consiglio personalizzato basato sulle tue finanze.
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {!autoInsight && (
+            <Button variant="secondary" size="sm" onClick={generate} isLoading={loading}>
+              Genera consiglio
+            </Button>
+          )}
+          <Link to="/ai">
+            <Button size="sm">Chatta</Button>
+          </Link>
+        </div>
+      </div>
+    </Card>
   )
 }
 

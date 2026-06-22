@@ -61,6 +61,26 @@ export interface SettingsMap {
   starting_balance: string
   username: string
   onboarding_completed: string
+  ai_provider: string
+  ai_api_key: string
+  ai_api_key_set: string
+  ai_model: string
+  ai_auto_insight: string
+}
+
+export type AiProvider = 'openai' | 'anthropic'
+
+export type AiPeriod =
+  | 'current_month'
+  | 'last_month'
+  | 'last_3_months'
+  | 'last_6_months'
+  | 'last_12_months'
+  | 'all'
+
+export interface AiMessage {
+  role: 'user' | 'assistant' | 'system'
+  content: string
 }
 
 export interface ExchangeRateResult {
@@ -103,6 +123,15 @@ export interface Api {
   showSaveDialog: (options: ElectronSaveDialogOptions) => Promise<string | null>
   showOpenDialog: (options: ElectronOpenDialogOptions) => Promise<string | null>
   getSystemLocale: () => Promise<string>
+
+  // AI
+  saveAiApiKey: (key: string) => Promise<void>
+  getAiApiKey: () => Promise<string>
+  sendAiMessage: (message: string, history: AiMessage[], period: AiPeriod) => Promise<void>
+  onAiChunk: (callback: (chunk: string) => void) => () => void
+  onAiDone: (callback: () => void) => () => void
+  onAiError: (callback: (error: string) => void) => () => void
+  generateInsight: (period: AiPeriod) => Promise<string>
 
   // Currency
   getExchangeRate: (from: string, to: string) => Promise<ExchangeRateResult>

@@ -7,12 +7,14 @@ import {
   PieChart,
   RefreshCw,
   Settings,
+  Sparkles,
   Target
 } from 'lucide-react'
 import { BrandLogo } from '../ui/BrandLogo'
 
 const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/ai', label: 'LoveAI', icon: Sparkles },
   { to: '/transactions', label: 'Transazioni', icon: ArrowLeftRight },
   { to: '/subscriptions', label: 'Abbonamenti', icon: RefreshCw },
   { to: '/budget', label: 'Budget', icon: PieChart },
