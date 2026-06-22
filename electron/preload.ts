@@ -34,6 +34,7 @@ const api: Api = {
   // System
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options),
   showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpen', options),
+  getSystemLocale: () => ipcRenderer.invoke('system:getLocale'),
 
   // Currency
   getExchangeRate: (from, to) => ipcRenderer.invoke('currency:getRate', from, to),

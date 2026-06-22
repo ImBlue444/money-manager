@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react'
 import type { SettingsMap } from '../types'
 
 type SettingsState = Partial<SettingsMap>
@@ -12,7 +12,8 @@ const initialState: SettingsState = {
   locale: 'it-IT',
   theme: 'light',
   starting_balance: '0',
-  username: 'Utente'
+  username: 'Utente',
+  onboarding_completed: 'false'
 }
 
 function reducer(state: SettingsState, action: Action): SettingsState {
@@ -26,9 +27,20 @@ function reducer(state: SettingsState, action: Action): SettingsState {
   }
 }
 
+export interface OnboardingData {
+  username: string
+  base_currency: string
+  starting_balance: string
+  theme: 'light' | 'dark'
+  locale: string
+}
+
 interface SettingsContextValue {
   settings: SettingsState
+  loading: boolean
+  needsOnboarding: boolean
   updateSetting: <K extends keyof SettingsMap>(key: K, value: SettingsMap[K]) => Promise<void>
+  completeOnboarding: (data: OnboardingData) => Promise<void>
   refresh: () => Promise<void>
 }
 
@@ -36,11 +48,14 @@ const SettingsContext = createContext<SettingsContextValue | null>(null)
 
 export function SettingsProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const [state, dispatch] = useReducer(reducer, initialState)
+  const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
+    setLoading(true)
     const all = await window.api.getAllSettings()
     dispatch({ type: 'LOAD', settings: all })
     applyTheme(all.theme ?? 'light')
+    setLoading(false)
   }, [])
 
   const updateSetting = useCallback(
@@ -54,12 +69,30 @@ export function SettingsProvider({ children }: { children: React.ReactNode }): J
     []
   )
 
+  const completeOnboarding = useCallback(async (data: OnboardingData) => {
+    const payload: Partial<SettingsMap> = {
+      ...data,
+      onboarding_completed: 'true'
+    }
+    await Promise.all(
+      Object.entries(payload).map(([key, value]) =>
+        window.api.setSetting(key as keyof SettingsMap, value as string)
+      )
+    )
+    dispatch({ type: 'LOAD', settings: payload })
+    applyTheme(data.theme)
+  }, [])
+
   useEffect(() => {
     refresh()
   }, [refresh])
 
+  const needsOnboarding = state.onboarding_completed !== 'true'
+
   return (
-    <SettingsContext.Provider value={{ settings: state, updateSetting, refresh }}>
+    <SettingsContext.Provider
+      value={{ settings: state, loading, needsOnboarding, updateSetting, completeOnboarding, refresh }}
+    >
       {children}
     </SettingsContext.Provider>
   )

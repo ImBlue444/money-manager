@@ -90,7 +90,8 @@ function initSchema(): void {
     locale: 'it-IT',
     theme: 'light',
     starting_balance: '0',
-    username: 'Utente'
+    username: 'Utente',
+    onboarding_completed: 'false'
   }
   const insertSetting = db.prepare(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`)
   for (const [key, value] of Object.entries(defaults)) {

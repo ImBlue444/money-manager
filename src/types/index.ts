@@ -60,6 +60,7 @@ export interface SettingsMap {
   theme: 'light' | 'dark'
   starting_balance: string
   username: string
+  onboarding_completed: string
 }
 
 export interface ExchangeRateResult {
@@ -101,6 +102,7 @@ export interface Api {
   // System
   showSaveDialog: (options: ElectronSaveDialogOptions) => Promise<string | null>
   showOpenDialog: (options: ElectronOpenDialogOptions) => Promise<string | null>
+  getSystemLocale: () => Promise<string>
 
   // Currency
   getExchangeRate: (from: string, to: string) => Promise<ExchangeRateResult>

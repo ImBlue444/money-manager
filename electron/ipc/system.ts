@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from 'electron'
 import fs from 'node:fs'
 import { format } from 'date-fns'
 import {
@@ -44,6 +44,29 @@ function toMonthly(amount: number, cycle: BillingCycle): number {
 }
 
 export function registerSystemIpc(): void {
+  ipcMain.handle('system:getLocale', () => {
+    try {
+      const locale = app.getLocale()
+      // Map common locales to Intl-compatible format, fallback to en-US
+      const mapping: Record<string, string> = {
+        'it': 'it-IT',
+        'en': 'en-US',
+        'en-GB': 'en-GB',
+        'de': 'de-DE',
+        'fr': 'fr-FR',
+        'es': 'es-ES',
+        'pt': 'pt-PT',
+        'nl': 'nl-NL',
+        'ja': 'ja-JP',
+        'zh': 'zh-CN'
+      }
+      return mapping[locale] ?? locale.replace('_', '-') ?? 'en-US'
+    } catch (e) {
+      console.error('system:getLocale error', e)
+      return 'en-US'
+    }
+  })
+
   ipcMain.handle('dialog:showSave', async (_event, options: ElectronSaveDialogOptions) => {
     const win = getMainWindow()
     if (!win) return null
