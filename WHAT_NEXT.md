@@ -21,7 +21,7 @@ Stack tecnico:
 - Recharts (grafici)
 - date-fns (date)
 - Frankfurter API (tassi di cambio)
-- OpenAI / Anthropic Claude (LoveAI)
+- OpenAI / Anthropic Claude / Google Gemini (LoveAI)
 - Framer Motion (animazioni)
 
 ---
@@ -40,7 +40,8 @@ Stack tecnico:
 - Obiettivi di risparmio con progresso circolare, proiezione e confetti al completamento.
 - Report con filtri di periodo, grafici ed export CSV.
 - Impostazioni: profilo, valuta, locale, saldo iniziale, tema, backup/restore JSON, reset dati.
-- LoveAI: chat in streaming con OpenAI/Anthropic, context builder, insight automatico opzionale in Dashboard, API key cifrata con `electron.safeStorage`.
+- LoveAI: chat in streaming con OpenAI/Anthropic/Google Gemini, context builder, insight automatico opzionale in Dashboard, API key cifrata con `electron.safeStorage`.
+- LoveAI: supporto a 3 provider con modelli preimpostati Economy/Performance e modello personalizzato.
 - Rebranding a MoneyLove con design “soft fintech” (palette corallo/indaco, animazioni leggere).
 
 ### Note tecniche

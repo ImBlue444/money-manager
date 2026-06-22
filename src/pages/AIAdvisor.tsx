@@ -8,7 +8,8 @@ import { Select } from '../components/ui/Select'
 import { Input } from '../components/ui/Input'
 import { BrandLogo } from '../components/ui/BrandLogo'
 import { useSettings } from '../context/SettingsContext'
-import type { AiMessage, AiPeriod } from '../types'
+import { AI_PROVIDERS } from '../lib/aiProviders'
+import type { AiMessage, AiPeriod, AiProvider } from '../types'
 
 const PERIODS: { value: AiPeriod; label: string }[] = [
   { value: 'current_month', label: 'Mese corrente' },
@@ -33,9 +34,20 @@ export function AIAdvisor(): JSX.Element {
   const [period, setPeriod] = useState<AiPeriod>('last_month')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [apiKeySet, setApiKeySet] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const apiKey = settings.ai_api_key_set === 'true'
+  const provider = (settings.ai_provider as AiProvider) || 'openai'
+
+  useEffect(() => {
+    let cancelled = false
+    window.api.getAiApiKey(provider).then((key) => {
+      if (!cancelled) setApiKeySet(!!key)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [provider])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -67,7 +79,7 @@ export function AIAdvisor(): JSX.Element {
 
   const handleSend = async (text: string) => {
     if (!text.trim() || loading) return
-    if (!apiKey) {
+    if (!apiKeySet) {
       setError('Configura la chiave API nelle Impostazioni per usare LoveAI.')
       return
     }
@@ -107,7 +119,7 @@ export function AIAdvisor(): JSX.Element {
         </Select>
       </div>
 
-      {!apiKey && (
+      {!apiKeySet && (
         <div className="mb-4 flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-4 text-warning">
           <AlertTriangle className="h-5 w-5 shrink-0" />
           <div>
@@ -118,6 +130,15 @@ export function AIAdvisor(): JSX.Element {
           </div>
         </div>
       )}
+
+      <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 dark:bg-white/10">
+          {AI_PROVIDERS[provider].label}
+        </span>
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 dark:bg-white/10">
+          {settings.ai_model || 'default'}
+        </span>
+      </div>
 
       <Card className="relative flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 space-y-4 overflow-y-auto p-4">

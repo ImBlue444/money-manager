@@ -260,9 +260,20 @@ function AIInsight(): JSX.Element {
   const { settings } = useSettings()
   const [insight, setInsight] = useState('')
   const [loading, setLoading] = useState(false)
+  const [hasKey, setHasKey] = useState(false)
 
   const autoInsight = settings.ai_auto_insight === 'true'
-  const hasKey = settings.ai_api_key_set === 'true'
+  const provider = (settings.ai_provider as 'openai' | 'anthropic' | 'gemini') || 'openai'
+
+  useEffect(() => {
+    let cancelled = false
+    window.api.getAiApiKey(provider).then((key) => {
+      if (!cancelled) setHasKey(!!key)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [provider])
 
   const generate = async () => {
     setLoading(true)

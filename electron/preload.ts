@@ -37,8 +37,8 @@ const api: Api = {
   getSystemLocale: () => ipcRenderer.invoke('system:getLocale'),
 
   // AI
-  saveAiApiKey: (key: string) => ipcRenderer.invoke('ai:saveApiKey', key),
-  getAiApiKey: () => ipcRenderer.invoke('ai:getApiKey'),
+  saveAiApiKey: (provider: string, key: string) => ipcRenderer.invoke('ai:saveApiKey', provider, key),
+  getAiApiKey: (provider: string) => ipcRenderer.invoke('ai:getApiKey', provider),
   sendAiMessage: (message: string, history: AiMessage[], period: AiPeriod) =>
     ipcRenderer.invoke('ai:sendMessage', message, history, period),
   onAiChunk: (callback: (chunk: string) => void) => {

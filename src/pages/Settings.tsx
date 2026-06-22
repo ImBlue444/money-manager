@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Save, Download, Upload, Trash2, Sparkles, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { useSettings } from '../context/SettingsContext'
+import { AI_PROVIDERS, getDefaultModel } from '../lib/aiProviders'
 import type { AiProvider } from '../types'
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD']
 const LOCALES = ['it-IT', 'en-US', 'en-GB', 'de-DE', 'fr-FR', 'es-ES']
-const PROVIDERS: { value: AiProvider; label: string }[] = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic Claude' }
-]
+const CUSTOM_MODEL_VALUE = 'custom'
+
+const PROVIDER_OPTIONS = Object.entries(AI_PROVIDERS).map(([value, config]) => ({
+  value: value as AiProvider,
+  label: config.label
+}))
 
 export function Settings(): JSX.Element {
   const { settings, updateSetting, refresh } = useSettings()
@@ -25,10 +28,14 @@ export function Settings(): JSX.Element {
   const [aiProvider, setAiProvider] = useState<AiProvider>(
     (settings.ai_provider as AiProvider) || 'openai'
   )
-  const [aiModel, setAiModel] = useState(settings.ai_model || 'gpt-4o-mini')
+  const [aiModel, setAiModel] = useState(settings.ai_model || getDefaultModel(aiProvider))
+  const [isCustomModel, setIsCustomModel] = useState(false)
+  const [customModel, setCustomModel] = useState('')
   const [aiApiKey, setAiApiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
   const [aiAutoInsight, setAiAutoInsight] = useState(settings.ai_auto_insight === 'true')
+
+  const providerModels = useMemo(() => AI_PROVIDERS[aiProvider].models, [aiProvider])
 
   useEffect(() => {
     setUsername(settings.username || '')
@@ -36,22 +43,65 @@ export function Settings(): JSX.Element {
     setLocale(settings.locale || 'it-IT')
     setStartingBalance(settings.starting_balance || '0')
     setTheme(settings.theme || 'light')
-    setAiProvider((settings.ai_provider as AiProvider) || 'openai')
-    setAiModel(settings.ai_model || 'gpt-4o-mini')
+    const nextProvider = (settings.ai_provider as AiProvider) || 'openai'
+    setAiProvider(nextProvider)
+    const savedModel = settings.ai_model || getDefaultModel(nextProvider)
+    setAiModel(savedModel)
+    const isKnown = AI_PROVIDERS[nextProvider].models.some((m) => m.id === savedModel)
+    setIsCustomModel(!isKnown)
+    setCustomModel(isKnown ? '' : savedModel)
     setAiAutoInsight(settings.ai_auto_insight === 'true')
   }, [settings])
 
   useEffect(() => {
     let cancelled = false
-    window.api.getAiApiKey().then((key) => {
+    window.api.getAiApiKey(aiProvider).then((key) => {
       if (!cancelled) setAiApiKey(key)
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [aiProvider])
+
+  const handleProviderChange = (next: AiProvider) => {
+    setAiProvider(next)
+    const defaultModel = getDefaultModel(next)
+    setAiModel(defaultModel)
+    setIsCustomModel(false)
+    setCustomModel('')
+  }
+
+  const handleModelChange = (value: string) => {
+    if (value === CUSTOM_MODEL_VALUE) {
+      setIsCustomModel(true)
+      setCustomModel('')
+    } else {
+      setIsCustomModel(false)
+      setCustomModel('')
+      setAiModel(value)
+    }
+  }
+
+  const effectiveModel = useMemo(() => {
+    if (isCustomModel && customModel.trim()) return customModel.trim()
+    return aiModel
+  }, [isCustomModel, customModel, aiModel])
+
+  const selectedTierLabel = useMemo(() => {
+    if (isCustomModel) return 'Modello personalizzato — il consumo dipende dal modello scelto'
+    const found = providerModels.find((m) => m.id === aiModel)
+    if (!found) return ''
+    return found.tier === 'economy'
+      ? 'Economy — basso consumo di token'
+      : 'Performance — qualità superiore, maggiore consumo di token'
+  }, [aiModel, isCustomModel, providerModels])
 
   const handleSave = async () => {
+    if (isCustomModel && !customModel.trim()) {
+      alert('Inserisci un ID modello personalizzato prima di salvare.')
+      return
+    }
+    const modelToSave = effectiveModel
     await Promise.all([
       updateSetting('username', username),
       updateSetting('base_currency', currency),
@@ -59,10 +109,9 @@ export function Settings(): JSX.Element {
       updateSetting('starting_balance', startingBalance),
       updateSetting('theme', theme),
       updateSetting('ai_provider', aiProvider),
-      updateSetting('ai_model', aiModel),
+      updateSetting('ai_model', modelToSave),
       updateSetting('ai_auto_insight', String(aiAutoInsight)),
-      updateSetting('ai_api_key_set', aiApiKey ? 'true' : 'false'),
-      window.api.saveAiApiKey(aiApiKey)
+      window.api.saveAiApiKey(aiProvider, aiApiKey)
     ])
     alert('Impostazioni salvate')
   }
@@ -174,30 +223,52 @@ export function Settings(): JSX.Element {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium">Provider</label>
-              <Select value={aiProvider} onChange={(e) => setAiProvider(e.target.value as AiProvider)}>
-                {PROVIDERS.map((p) => (
+              <Select value={aiProvider} onChange={(e) => handleProviderChange(e.target.value as AiProvider)}>
+                {PROVIDER_OPTIONS.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
               </Select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium">Modello</label>
-              <Input
-                value={aiModel}
-                onChange={(e) => setAiModel(e.target.value)}
-                placeholder={aiProvider === 'openai' ? 'gpt-4o-mini' : 'claude-3-haiku-20240307'}
-              />
+              {isCustomModel ? (
+                <Input
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                  placeholder="Inserisci ID modello personalizzato"
+                />
+              ) : (
+                <Select value={aiModel} onChange={(e) => handleModelChange(e.target.value)}>
+                  {providerModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label} ({m.tier === 'economy' ? 'Economy' : 'Performance'})
+                    </option>
+                  ))}
+                  <option value={CUSTOM_MODEL_VALUE}>Modello personalizzato...</option>
+                </Select>
+              )}
+              {selectedTierLabel && (
+                <p className="mt-1 text-xs text-gray-500">{selectedTierLabel}</p>
+              )}
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium">API Key</label>
+            <label className="mb-1 block text-xs font-medium">
+              API Key — {AI_PROVIDERS[aiProvider].label}
+            </label>
             <div className="relative">
               <Input
                 type={showKey ? 'text' : 'password'}
                 value={aiApiKey}
                 onChange={(e) => setAiApiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder={
+                  aiProvider === 'openai'
+                    ? 'sk-...'
+                    : aiProvider === 'anthropic'
+                    ? 'sk-ant-...'
+                    : 'AIza...'
+                }
                 className="pr-10"
               />
               <button

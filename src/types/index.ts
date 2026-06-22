@@ -62,13 +62,22 @@ export interface SettingsMap {
   username: string
   onboarding_completed: string
   ai_provider: string
-  ai_api_key: string
-  ai_api_key_set: string
   ai_model: string
   ai_auto_insight: string
 }
 
-export type AiProvider = 'openai' | 'anthropic'
+export type AiProvider = 'openai' | 'anthropic' | 'gemini'
+
+export interface AiModelOption {
+  id: string
+  label: string
+  tier: 'economy' | 'performance'
+}
+
+export interface AiProviderConfig {
+  label: string
+  models: AiModelOption[]
+}
 
 export type AiPeriod =
   | 'current_month'
@@ -125,8 +134,8 @@ export interface Api {
   getSystemLocale: () => Promise<string>
 
   // AI
-  saveAiApiKey: (key: string) => Promise<void>
-  getAiApiKey: () => Promise<string>
+  saveAiApiKey: (provider: AiProvider, key: string) => Promise<void>
+  getAiApiKey: (provider: AiProvider) => Promise<string>
   sendAiMessage: (message: string, history: AiMessage[], period: AiPeriod) => Promise<void>
   onAiChunk: (callback: (chunk: string) => void) => () => void
   onAiDone: (callback: () => void) => () => void
