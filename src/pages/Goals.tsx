@@ -6,8 +6,10 @@ import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { Spinner } from '../components/ui/Spinner'
 import { useGoals } from '../hooks/useGoals'
+import { useConfetti } from '../hooks/useConfetti'
 import { useSettings } from '../context/SettingsContext'
 import { formatCurrency } from '../lib/formatters'
+import { Confetti } from '../components/Confetti'
 import type { Goal } from '../types'
 
 const ICONS = ['🎯', '✈️', '🚗', '🏠', '🎓', '💻', '🎁', '🏖️', '💍', '🐷', '⚕️', '🔧']
@@ -17,12 +19,15 @@ export function Goals(): JSX.Element {
   const { data, loading, error, refetch } = useGoals()
   const [modalOpen, setModalOpen] = useState(false)
   const [fundingGoal, setFundingGoal] = useState<Goal | null>(null)
+  const { active: confettiActive, trigger: triggerConfetti } = useConfetti()
 
   const currency = settings.base_currency || 'EUR'
   const locale = settings.locale || 'it-IT'
 
   return (
     <div className="space-y-4">
+      <Confetti active={confettiActive} />
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold">Obiettivi di risparmio</h2>
         <Button onClick={() => setModalOpen(true)} className="gap-2">
@@ -58,12 +63,13 @@ export function Goals(): JSX.Element {
         </div>
       )}
 
-      <GoalModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} />
+      <GoalModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSaved={refetch} onCelebrate={triggerConfetti} />
       <FundModal
         isOpen={!!fundingGoal}
         onClose={() => setFundingGoal(null)}
         goal={fundingGoal}
         onSaved={refetch}
+        onCelebrate={triggerConfetti}
       />
     </div>
   )
@@ -216,11 +222,13 @@ function CircularProgress({ percentage, color }: { percentage: number; color: st
 function GoalModal({
   isOpen,
   onClose,
-  onSaved
+  onSaved,
+  onCelebrate
 }: {
   isOpen: boolean
   onClose: () => void
   onSaved: () => void
+  onCelebrate: () => void
 }): JSX.Element {
   const { settings } = useSettings()
   const [name, setName] = useState('')
@@ -245,19 +253,23 @@ function GoalModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const t = Number(target)
-    const c = Number(current)
+    const currentAmount = Number(current)
     if (!name || !target || Number.isNaN(t) || t <= 0) return alert('Dati non validi')
     setSaving(true)
+    const safeCurrent = Number.isNaN(currentAmount) ? 0 : currentAmount
     try {
       await window.api.addGoal({
         name,
         target_amount: t,
-        current_amount: Number.isNaN(c) ? 0 : c,
+        current_amount: safeCurrent,
         target_date: targetDate || null,
         color,
         icon,
         notes: ''
       })
+      if (safeCurrent >= t) {
+        onCelebrate()
+      }
       onSaved()
       onClose()
     } catch {
@@ -301,12 +313,14 @@ function FundModal({
   isOpen,
   onClose,
   goal,
-  onSaved
+  onSaved,
+  onCelebrate
 }: {
   isOpen: boolean
   onClose: () => void
   goal: Goal | null
   onSaved: () => void
+  onCelebrate: () => void
 }): JSX.Element {
   const [amount, setAmount] = useState('')
   const [saving, setSaving] = useState(false)
@@ -322,7 +336,11 @@ function FundModal({
     if (!amount || Number.isNaN(val) || val <= 0) return alert('Importo non valido')
     setSaving(true)
     try {
-      await window.api.updateGoal(goal.id, { current_amount: goal.current_amount + val })
+      const newAmount = goal.current_amount + val
+      await window.api.updateGoal(goal.id, { current_amount: newAmount })
+      if (newAmount >= goal.target_amount) {
+        onCelebrate()
+      }
       onSaved()
       onClose()
     } catch {

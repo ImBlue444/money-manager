@@ -19,13 +19,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none',
-          variant === 'primary' && 'bg-primary-500 text-white hover:bg-primary-700',
-          variant === 'secondary' && 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-100',
-          variant === 'danger' && 'bg-red-500 text-white hover:bg-red-600',
-          variant === 'ghost' && 'bg-transparent text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800',
-          size === 'sm' && 'h-8 px-3 text-xs',
-          size === 'md' && 'h-10 px-4 text-sm',
+          'inline-flex items-center justify-center rounded-full font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-95',
+          variant === 'primary' && 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-glow hover:shadow-lg hover:brightness-105',
+          variant === 'secondary' && 'bg-white/70 text-gray-900 shadow-sm hover:bg-white dark:bg-white/10 dark:text-gray-100 dark:hover:bg-white/20',
+          variant === 'danger' && 'bg-gradient-to-r from-expense to-red-500 text-white shadow-md hover:brightness-105',
+          variant === 'ghost' && 'bg-transparent text-gray-700 hover:bg-primary-50 dark:text-gray-200 dark:hover:bg-white/5',
+          size === 'sm' && 'h-8 px-4 text-xs',
+          size === 'md' && 'h-10 px-5 text-sm',
           size === 'lg' && 'h-12 px-6 text-base',
           className
         )}

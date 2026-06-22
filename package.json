@@ -1,7 +1,7 @@
 {
-  "name": "finanza-personale",
+  "name": "moneylove",
   "version": "1.0.0",
-  "description": "App desktop Electron per la gestione delle finanze personali",
+  "description": "App desktop Electron per la gestione delle finanze personali con stile",
   "main": "./out/main/index.js",
   "author": "",
   "license": "MIT",
@@ -25,6 +25,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "electron-store": "^8.2.0",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^0.474.0",
     "postcss": "^8.5.1",
     "react": "^18.3.1",

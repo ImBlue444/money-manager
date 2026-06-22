@@ -1,6 +1,6 @@
-# Finanza Personale
+# MoneyLove
 
-Applicazione desktop per la gestione delle finanze personali, costruita con Electron, React 18, Vite, Tailwind CSS e SQLite.
+MoneyLove — applicazione desktop per la gestione delle finanze personali, con un tocco di colore e semplicità. Costruita con Electron, React 18, Vite, Tailwind CSS e SQLite.
 
 ## Stack tecnico
 

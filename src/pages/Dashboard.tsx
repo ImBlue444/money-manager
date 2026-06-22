@@ -76,25 +76,25 @@ export function Dashboard(): JSX.Element {
           label="Saldo attuale"
           value={formatCurrency(data.balance, currency, locale)}
           icon={Wallet}
-          color="text-primary-500"
+          gradient="bg-gradient-to-br from-primary-500 to-secondary-500"
         />
         <SummaryCard
           label="Entrate mese"
           value={formatCurrency(data.income, currency, locale)}
           icon={TrendingUp}
-          color="text-income"
+          gradient="bg-gradient-to-br from-income to-teal-400"
         />
         <SummaryCard
           label="Uscite mese"
           value={formatCurrency(data.expense, currency, locale)}
           icon={TrendingDown}
-          color="text-expense"
+          gradient="bg-gradient-to-br from-expense to-orange-400"
         />
         <SummaryCard
           label="Abbonamenti attivi"
           value={formatCurrency(data.subscriptions, currency, locale)}
           icon={RefreshCw}
-          color="text-warning"
+          gradient="bg-gradient-to-br from-warning to-yellow-300"
         />
       </div>
 
@@ -176,22 +176,26 @@ function SummaryCard({
   label,
   value,
   icon: Icon,
-  color
+  gradient
 }: {
   label: string
   value: string
   icon: React.ElementType
-  color: string
+  gradient: string
 }): JSX.Element {
   return (
-    <Card>
+    <Card className="group overflow-hidden transition-transform hover:-translate-y-1 hover:shadow-glow">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-          <p className="mt-1 text-xl font-bold">{value}</p>
+          <p className="mt-1 font-display text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            {value}
+          </p>
         </div>
-        <div className={color}>
-          <Icon className="h-8 w-8" />
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg transition-transform group-hover:scale-110 ${gradient}`}
+        >
+          <Icon className="h-6 w-6" />
         </div>
       </div>
     </Card>
@@ -241,7 +245,7 @@ function TransactionRow({
   )
 }
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#0ea5e9']
+const COLORS = ['#ff5e8a', '#a78bfa', '#34d399', '#ffb703', '#ff4d6d', '#60a5fa', '#f472b6', '#fb923c']
 function getColor(idx: number): string {
   return COLORS[idx % COLORS.length]
 }

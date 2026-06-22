@@ -29,7 +29,7 @@ function createWindow(): void {
     ...bounds,
     minWidth: 900,
     minHeight: 600,
-    title: 'Finanza Personale',
+    title: 'MoneyLove',
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
