@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,29 +6,25 @@
 
 @layer base {
   html {
-    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
     font-size: 14px;
-    @apply bg-cream dark:bg-love-dark;
   }
   body {
-    @apply bg-transparent text-gray-900 dark:text-gray-100;
+    @apply bg-cream text-gray-900 dark:bg-love-dark dark:text-gray-100;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
   }
 }
 
 @layer utilities {
   .card {
-    @apply bg-white/80 dark:bg-love-card-dark/80 backdrop-blur-xl rounded-3xl shadow-soft border border-white/50 dark:border-white/10 p-5;
+    @apply bg-white/90 dark:bg-love-card-dark/90 backdrop-blur-md rounded-2xl shadow-soft border border-gray-100 dark:border-white/5 p-5;
   }
   .glass {
-    @apply bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/40 dark:border-white/10;
+    @apply bg-white/70 dark:bg-white/5 backdrop-blur-md border border-white/40 dark:border-white/5;
   }
   .text-gradient {
-    @apply bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent;
-  }
-  .bg-gradient-love {
-    background: linear-gradient(135deg, #fff1f4 0%, #f3e8ff 50%, #fff7f5 100%);
-  }
-  .bg-gradient-love-dark {
-    background: linear-gradient(135deg, #1a1218 0%, #23142a 50%, #1a1218 100%);
+    @apply bg-gradient-to-r from-primary-600 to-secondary-700 bg-clip-text text-transparent;
   }
 }

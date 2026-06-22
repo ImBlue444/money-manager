@@ -81,25 +81,25 @@ export function Dashboard(): JSX.Element {
           label="Saldo attuale"
           value={formatCurrency(data.balance, currency, locale)}
           icon={Wallet}
-          gradient="bg-gradient-to-br from-primary-500 to-secondary-500"
+          tone="primary"
         />
         <SummaryCard
           label="Entrate mese"
           value={formatCurrency(data.income, currency, locale)}
           icon={TrendingUp}
-          gradient="bg-gradient-to-br from-income to-teal-400"
+          tone="income"
         />
         <SummaryCard
           label="Uscite mese"
           value={formatCurrency(data.expense, currency, locale)}
           icon={TrendingDown}
-          gradient="bg-gradient-to-br from-expense to-orange-400"
+          tone="expense"
         />
         <SummaryCard
           label="Abbonamenti attivi"
           value={formatCurrency(data.subscriptions, currency, locale)}
           icon={RefreshCw}
-          gradient="bg-gradient-to-br from-warning to-yellow-300"
+          tone="warning"
         />
       </div>
 
@@ -181,15 +181,21 @@ function SummaryCard({
   label,
   value,
   icon: Icon,
-  gradient
+  tone
 }: {
   label: string
   value: string
   icon: React.ElementType
-  gradient: string
+  tone: 'primary' | 'income' | 'expense' | 'warning'
 }): JSX.Element {
+  const toneClasses = {
+    primary: 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300',
+    income: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300',
+    expense: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300',
+    warning: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
+  }
   return (
-    <Card className="group overflow-hidden transition-transform hover:-translate-y-1 hover:shadow-glow">
+    <Card className="group transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
@@ -198,9 +204,9 @@ function SummaryCard({
           </p>
         </div>
         <div
-          className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg transition-transform group-hover:scale-110 ${gradient}`}
+          className={`flex h-11 w-11 items-center justify-center rounded-xl transition-transform group-hover:scale-105 ${toneClasses[tone]}`}
         >
-          <Icon className="h-6 w-6" />
+          <Icon className="h-5 w-5" />
         </div>
       </div>
     </Card>

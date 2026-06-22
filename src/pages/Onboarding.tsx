@@ -59,20 +59,17 @@ export function Onboarding(): JSX.Element {
         transition={{ duration: 0.6, ease: 'easeOut' }}
         className="w-full max-w-md"
       >
-        <Card className="relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary-500/10 blur-2xl" />
-          <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-secondary-500/10 blur-2xl" />
-
-          <div className="relative mb-6 text-center">
+        <Card>
+          <div className="mb-6 text-center">
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="mx-auto mb-3 flex h-16 w-16 items-center justify-center"
+              className="mx-auto mb-3 flex h-14 w-14 items-center justify-center"
             >
-              <BrandLogo className="h-16 w-16 animate-float drop-shadow-glow" />
+              <BrandLogo className="h-14 w-14" />
             </motion.div>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-gradient">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
               MoneyLove
             </h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -80,7 +77,7 @@ export function Onboarding(): JSX.Element {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="relative space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Nome</label>
               <Input
@@ -149,11 +146,7 @@ export function Onboarding(): JSX.Element {
               <p className="mt-1 text-xs text-gray-500">Derivato automaticamente dal sistema.</p>
             </div>
 
-            <Button
-              type="submit"
-              isLoading={loading}
-              className="w-full bg-gradient-to-r from-primary-500 to-primary-600 hover:shadow-glow"
-            >
+            <Button type="submit" isLoading={loading} className="w-full">
               Inizia
             </Button>
           </form>

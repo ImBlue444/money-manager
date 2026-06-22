@@ -13,7 +13,7 @@ export function SplashScreen({ onDone, duration = 2200 }: SplashScreenProps): JS
   useEffect(() => {
     const timer = setTimeout(() => {
       setVisible(false)
-      setTimeout(onDone, 600)
+      setTimeout(onDone, 500)
     }, duration)
     return () => clearTimeout(timer)
   }, [duration, onDone])
@@ -24,31 +24,29 @@ export function SplashScreen({ onDone, duration = 2200 }: SplashScreenProps): JS
         <motion.div
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeInOut' }}
+          transition={{ duration: 0.5, ease: 'easeInOut' }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-cream dark:bg-love-dark"
         >
           <motion.div
-            initial={{ scale: 0.6, opacity: 0, rotate: -10 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15, duration: 0.8 }}
-            className="relative"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
           >
-            <div className="absolute inset-0 animate-pulse-soft rounded-full bg-primary-500/20 blur-2xl" />
-            <BrandLogo className="relative h-24 w-24 drop-shadow-glow" />
+            <BrandLogo className="h-16 w-16" />
           </motion.div>
           <motion.h1
-            initial={{ y: 20, opacity: 0 }}
+            initial={{ y: 12, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="mt-6 font-display text-4xl font-bold tracking-tight text-gradient"
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="mt-4 font-display text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100"
           >
             MoneyLove
           </motion.h1>
           <motion.p
-            initial={{ y: 10, opacity: 0 }}
+            initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-            className="mt-2 text-sm text-gray-500 dark:text-gray-400"
+            transition={{ delay: 0.35, duration: 0.4 }}
+            className="mt-1 text-sm text-gray-500 dark:text-gray-400"
           >
             Le tue finanze, con amore
           </motion.p>
