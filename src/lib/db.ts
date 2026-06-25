@@ -176,12 +176,22 @@ export function getTransactions(filters: TransactionFilters = {}): Transaction[]
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-  const limit = filters.limit !== undefined ? 'LIMIT ?' : ''
-  const offset = filters.offset !== undefined ? 'OFFSET ?' : ''
-  if (filters.limit !== undefined) params.push(filters.limit)
-  if (filters.offset !== undefined) params.push(filters.offset)
+  let limitClause = ''
+  let offsetClause = ''
+  if (filters.limit !== undefined) {
+    const limit = Number(filters.limit)
+    if (!Number.isInteger(limit) || limit < 0 || limit > 1000) throw new Error('limit non valido')
+    limitClause = 'LIMIT ?'
+    params.push(limit)
+  }
+  if (filters.offset !== undefined) {
+    const offset = Number(filters.offset)
+    if (!Number.isInteger(offset) || offset < 0) throw new Error('offset non valido')
+    offsetClause = 'OFFSET ?'
+    params.push(offset)
+  }
 
-  const sql = `SELECT * FROM transactions ${where} ORDER BY date DESC, id DESC ${limit} ${offset}`
+  const sql = `SELECT * FROM transactions ${where} ORDER BY date DESC, id DESC ${limitClause} ${offsetClause}`
   return db.prepare(sql).all(...params) as Transaction[]
 }
 
@@ -204,6 +214,17 @@ export function addTransaction(data: Omit<Transaction, 'id' | 'created_at'>): { 
   return { id: Number(res.lastInsertRowid) }
 }
 
+const TRANSACTION_UPDATE_FIELDS = new Set([
+  'amount',
+  'amount_base',
+  'conversion_warning',
+  'type',
+  'category',
+  'description',
+  'date',
+  'currency'
+])
+
 export function updateTransaction(
   id: number,
   data: Partial<Omit<Transaction, 'id' | 'created_at'>>
@@ -211,7 +232,7 @@ export function updateTransaction(
   const fields: string[] = []
   const values: unknown[] = []
   for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) {
+    if (value !== undefined && TRANSACTION_UPDATE_FIELDS.has(key)) {
       fields.push(`${key} = ?`)
       values.push(value)
     }
@@ -264,13 +285,15 @@ export function getSpendingByCategory(month: string): Array<{ category: string; 
 }
 
 export function getBalanceTrend(months = 6): Array<{ month: string; balance: number }> {
+  const m = Number(months)
+  if (!Number.isInteger(m) || m < 1 || m > 120) throw new Error('months non valido')
   const starting = Number(getSetting('starting_balance') ?? '0')
   const rows = db
     .prepare(
       `SELECT strftime('%Y-%m', date) AS month,
         SUM(CASE WHEN type = 'income' THEN amount_base ELSE -amount_base END) AS net
       FROM transactions
-      WHERE date >= date('now', '-${months} months', 'start of month')
+      WHERE date >= date('now', '-${m} months', 'start of month')
       GROUP BY month
       ORDER BY month ASC`
     )
@@ -288,13 +311,15 @@ export function getIncomeExpenseHistory(months = 12): Array<{
   income: number
   expense: number
 }> {
+  const m = Number(months)
+  if (!Number.isInteger(m) || m < 1 || m > 120) throw new Error('months non valido')
   return db
     .prepare(
       `SELECT strftime('%Y-%m', date) AS month,
         COALESCE(SUM(CASE WHEN type = 'income' THEN amount_base ELSE 0 END), 0) AS income,
         COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_base ELSE 0 END), 0) AS expense
       FROM transactions
-      WHERE date >= date('now', '-${months} months', 'start of month')
+      WHERE date >= date('now', '-${m} months', 'start of month')
       GROUP BY month
       ORDER BY month ASC`
     )
@@ -304,11 +329,13 @@ export function getIncomeExpenseHistory(months = 12): Array<{
 export function getCategoryTrend(
   months = 12
 ): Array<{ month: string; category: string; amount: number }> {
+  const m = Number(months)
+  if (!Number.isInteger(m) || m < 1 || m > 120) throw new Error('months non valido')
   return db
     .prepare(
       `SELECT strftime('%Y-%m', date) AS month, category, SUM(amount_base) AS amount
       FROM transactions
-      WHERE type = 'expense' AND date >= date('now', '-${months} months', 'start of month')
+      WHERE type = 'expense' AND date >= date('now', '-${m} months', 'start of month')
       GROUP BY month, category
       ORDER BY month ASC, amount DESC`
     )
@@ -362,6 +389,21 @@ export function addSubscription(data: Omit<Subscription, 'id' | 'created_at'>): 
   return { id: Number(res.lastInsertRowid) }
 }
 
+const SUBSCRIPTION_UPDATE_FIELDS = new Set([
+  'name',
+  'amount',
+  'amount_base',
+  'conversion_warning',
+  'currency',
+  'billing_cycle',
+  'category',
+  'next_billing_date',
+  'color',
+  'icon',
+  'is_active',
+  'notes'
+])
+
 export function updateSubscription(
   id: number,
   data: Partial<Omit<Subscription, 'id' | 'created_at'>>
@@ -369,7 +411,7 @@ export function updateSubscription(
   const fields: string[] = []
   const values: unknown[] = []
   for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) {
+    if (value !== undefined && SUBSCRIPTION_UPDATE_FIELDS.has(key)) {
       fields.push(`${key} = ?`)
       values.push(value)
     }
@@ -453,11 +495,21 @@ export function addGoal(data: Omit<Goal, 'id' | 'created_at'>): { id: number } {
   return { id: Number(res.lastInsertRowid) }
 }
 
+const GOAL_UPDATE_FIELDS = new Set([
+  'name',
+  'target_amount',
+  'current_amount',
+  'target_date',
+  'color',
+  'icon',
+  'notes'
+])
+
 export function updateGoal(id: number, data: Partial<Omit<Goal, 'id' | 'created_at'>>): void {
   const fields: string[] = []
   const values: unknown[] = []
   for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) {
+    if (value !== undefined && GOAL_UPDATE_FIELDS.has(key)) {
       fields.push(`${key} = ?`)
       values.push(value)
     }

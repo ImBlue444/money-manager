@@ -16,6 +16,8 @@ const RATE_TTL = 30 * 60 * 1000
 
 const store = new Store<CurrencyStore>({
   name: 'moneylove-rates',
+  encryptionKey: 'moneylove-rates-storage-key',
+  clearInvalidConfig: true,
   defaults: { rates: {} }
 })
 
@@ -145,29 +147,38 @@ export function setLastBaseCurrency(base: string): void {
   store.set('lastBaseCurrency', base)
 }
 
+const RECALC_STATEMENTS = {
+  transactions: {
+    all: db.prepare('SELECT DISTINCT currency FROM transactions WHERE currency != ?'),
+    warnings: db.prepare('SELECT DISTINCT currency FROM transactions WHERE conversion_warning = 1'),
+    update: db.prepare('UPDATE transactions SET amount_base = amount * ?, conversion_warning = 0 WHERE currency = ?'),
+    flag: db.prepare('UPDATE transactions SET conversion_warning = 1 WHERE currency = ? AND currency != ?')
+  },
+  subscriptions: {
+    all: db.prepare('SELECT DISTINCT currency FROM subscriptions WHERE currency != ?'),
+    warnings: db.prepare('SELECT DISTINCT currency FROM subscriptions WHERE conversion_warning = 1'),
+    update: db.prepare('UPDATE subscriptions SET amount_base = amount * ?, conversion_warning = 0 WHERE currency = ?'),
+    flag: db.prepare('UPDATE subscriptions SET conversion_warning = 1 WHERE currency = ? AND currency != ?')
+  }
+}
+
 async function recalculateTable(
-  table: 'transactions' | 'subscriptions',
+  table: keyof typeof RECALC_STATEMENTS,
   base: string,
   onlyWarnings: boolean
 ): Promise<void> {
-  const where = onlyWarnings ? 'conversion_warning = 1' : 'currency != ?'
-  const rows = db
-    .prepare(`SELECT DISTINCT currency FROM ${table} WHERE ${onlyWarnings ? 'conversion_warning = 1' : 'currency != ?'}`)
-    .all(...(onlyWarnings ? [] : [base])) as Array<{ currency: string }>
+  const stmts = RECALC_STATEMENTS[table]
+  const rows = (onlyWarnings
+    ? stmts.warnings.all()
+    : stmts.all.all(base)) as Array<{ currency: string }>
 
   for (const { currency } of rows) {
     if (currency === base) continue
     const rate = await fetchRate(currency, base)
     if (rate !== null) {
-      db.prepare(`UPDATE ${table} SET amount_base = amount * ?, conversion_warning = 0 WHERE currency = ?`).run(
-        rate,
-        currency
-      )
+      stmts.update.run(rate, currency)
     } else {
-      db.prepare(`UPDATE ${table} SET conversion_warning = 1 WHERE currency = ? AND currency != ?`).run(
-        currency,
-        base
-      )
+      stmts.flag.run(currency, base)
     }
   }
 }

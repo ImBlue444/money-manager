@@ -1,22 +1,27 @@
 import { ipcMain, nativeTheme } from 'electron'
 import { getAllSettings, getSetting, setSetting } from '../../src/lib/db'
-import type { SettingsMap } from '../../src/types'
+import { settingKeySchema } from '../../src/lib/schemas'
+
+const VALID_THEMES = ['light', 'dark', 'system'] as const
 
 export function registerSettingsIpc(): void {
-  ipcMain.handle('settings:get', (_event, key: keyof SettingsMap) => {
+  ipcMain.handle('settings:get', (_event, key) => {
     try {
-      return getSetting(key)
+      const validKey = settingKeySchema.parse(key)
+      return getSetting(validKey)
     } catch (e) {
       console.error('settings:get error', e)
       throw e
     }
   })
 
-  ipcMain.handle('settings:set', (_event, key: keyof SettingsMap, value: string) => {
+  ipcMain.handle('settings:set', (_event, key, value: string) => {
     try {
-      setSetting(key, value)
-      if (key === 'theme') {
-        nativeTheme.themeSource = value as 'light' | 'dark' | 'system'
+      const validKey = settingKeySchema.parse(key)
+      setSetting(validKey, value)
+      if (validKey === 'theme') {
+        const theme = VALID_THEMES.includes(value as typeof VALID_THEMES[number]) ? value : 'system'
+        nativeTheme.themeSource = theme as typeof VALID_THEMES[number]
       }
     } catch (e) {
       console.error('settings:set error', e)

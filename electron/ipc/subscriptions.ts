@@ -7,6 +7,7 @@ import {
   getSubscriptions,
   updateSubscription
 } from '../../src/lib/db'
+import { subscriptionSchema, subscriptionUpdateSchema } from '../../src/lib/schemas'
 import type { BillingCycle, EnrichedSubscription, Subscription } from '../../src/types'
 
 function toMonthly(amount: number, cycle: BillingCycle): number {
@@ -64,29 +65,30 @@ export function registerSubscriptionIpc(): void {
     }
   })
 
-  ipcMain.handle('subscriptions:add', (_event, data: Omit<Subscription, 'id' | 'created_at'>) => {
+  ipcMain.handle('subscriptions:add', (_event, data) => {
     try {
-      return addSubscription(data)
+      const valid = subscriptionSchema.parse(data)
+      return addSubscription(valid)
     } catch (e) {
       console.error('subscriptions:add error', e)
       throw e
     }
   })
 
-  ipcMain.handle(
-    'subscriptions:update',
-    (_event, id: number, data: Partial<Omit<Subscription, 'id' | 'created_at'>>) => {
-      try {
-        updateSubscription(id, data)
-      } catch (e) {
-        console.error('subscriptions:update error', e)
-        throw e
-      }
+  ipcMain.handle('subscriptions:update', (_event, id: number, data) => {
+    try {
+      if (!Number.isInteger(id) || id <= 0) throw new Error('ID non valido')
+      const valid = subscriptionUpdateSchema.parse(data)
+      updateSubscription(id, valid)
+    } catch (e) {
+      console.error('subscriptions:update error', e)
+      throw e
     }
-  )
+  })
 
   ipcMain.handle('subscriptions:delete', (_event, id: number) => {
     try {
+      if (!Number.isInteger(id) || id <= 0) throw new Error('ID non valido')
       deleteSubscription(id)
     } catch (e) {
       console.error('subscriptions:delete error', e)

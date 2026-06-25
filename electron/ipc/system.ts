@@ -21,6 +21,7 @@ import {
   importBackup,
   resetData
 } from '../../src/lib/db'
+import { backupDataSchema, currencyCodeSchema, dateSchema, monthKeySchema } from '../../src/lib/schemas'
 import type {
   BackupData,
   BillingCycle,
@@ -28,6 +29,15 @@ import type {
   ElectronSaveDialogOptions,
   Transaction
 } from '../../src/types'
+
+function sanitizeCsvField(value: string): string {
+  const escaped = value.replace(/"/g, '""')
+  // Prevent formula injection in spreadsheet software
+  if (/^[+=@-]/.test(value)) {
+    return `"'${escaped}"`
+  }
+  return `"${escaped}"`
+}
 
 function getMainWindow(): BrowserWindow | undefined {
   return BrowserWindow.getAllWindows()[0]
@@ -94,8 +104,10 @@ export function registerSystemIpc(): void {
 
   ipcMain.handle('currency:getRate', async (_event, from: string, to: string) => {
     try {
-      if (from === to) return { rate: 1, date: format(new Date(), 'yyyy-MM-dd') }
-      const rate = await fetchRate(from, to)
+      const fromCode = currencyCodeSchema.parse(from)
+      const toCode = currencyCodeSchema.parse(to)
+      if (fromCode === toCode) return { rate: 1, date: format(new Date(), 'yyyy-MM-dd') }
+      const rate = await fetchRate(fromCode, toCode)
       if (rate === null) throw new Error('Tasso non disponibile')
       return { rate }
     } catch (e) {
@@ -106,7 +118,8 @@ export function registerSystemIpc(): void {
 
   ipcMain.handle('currency:recalculate', async (_event, newBase: string) => {
     try {
-      await recalculateAll(newBase)
+      const base = currencyCodeSchema.parse(newBase)
+      await recalculateAll(base)
     } catch (e) {
       console.error('currency:recalculate error', e)
       throw e
@@ -158,8 +171,9 @@ export function registerSystemIpc(): void {
     if (result.canceled || !result.filePaths.length) return
     try {
       const raw = fs.readFileSync(result.filePaths[0], 'utf-8')
-      const data = JSON.parse(raw) as BackupData
-      importBackup(data)
+      const parsed = JSON.parse(raw)
+      const validated = backupDataSchema.parse(parsed)
+      importBackup(validated as BackupData)
     } catch (e) {
       console.error('backup:load error', e)
       throw e
@@ -193,8 +207,8 @@ export function registerSystemIpc(): void {
           r.id,
           r.date,
           r.type,
-          `"${r.category}"`,
-          `"${(r.description ?? '').replace(/"/g, '""')}"`,
+          sanitizeCsvField(r.category),
+          sanitizeCsvField(r.description ?? ''),
           r.amount,
           r.currency,
           r.amount_base,
@@ -207,6 +221,7 @@ export function registerSystemIpc(): void {
 
   ipcMain.handle('dashboard:summary', async (_event, month: string) => {
     try {
+      monthKeySchema.parse(month)
       const starting = Number(getSetting('starting_balance') ?? '0')
       const baseCurrency = (getSetting('base_currency') ?? 'EUR') as string
       const totals = getMonthlyTotals(month)
@@ -235,6 +250,8 @@ export function registerSystemIpc(): void {
 
   ipcMain.handle('reports:summary', (_event, from: string, to: string) => {
     try {
+      dateSchema.parse(from)
+      dateSchema.parse(to)
       return {
         categorySummary: getCategorySummary(from, to),
         incomeExpense: getIncomeExpenseHistory(12),

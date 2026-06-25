@@ -50,6 +50,7 @@ Stack tecnico:
 - Servizio `electron/services/currency.ts` con cache persistente su `electron-store`, ricalcolo automatico al cambio valuta base e alla riconnessione.
 - IPC con `contextBridge` e handler separati in `electron/ipc/`.
 - `out/` e `dist/` sono ignorati da Git.
+- Audit sicurezza eseguito: dipendenze aggiornate, sandbox abilitato, validazione input Zod, CSP, no fallback plaintext per chiavi API.
 - Progetto pubblicato su `https://github.com/ImBlue444/money-manager`.
 
 ### Issue/correzioni note

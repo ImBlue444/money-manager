@@ -195,7 +195,7 @@ export function AIAdvisor(): JSX.Element {
                 >
                   {msg.role === 'assistant' ? (
                     <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown disallowedElements={['a', 'img']} unwrapDisallowed>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
                     msg.content

@@ -3,6 +3,7 @@ import Store from 'electron-store'
 import { buildFinancialContext, buildSystemPrompt } from '../../src/lib/aiContext'
 import { getAllSettings } from '../../src/lib/db'
 import { AI_PROVIDERS, DEFAULT_PROVIDER, getDefaultModel } from '../../src/lib/aiProviders'
+import { aiPeriodSchema } from '../../src/lib/schemas'
 import type { AiMessage, AiPeriod, AiProvider } from '../../src/types'
 
 interface StoreKeys {
@@ -10,18 +11,22 @@ interface StoreKeys {
   apiKeyEncrypted?: string // legacy
 }
 
-const aiStore = new Store<StoreKeys>({ name: 'moneylove-ai' })
+const aiStore = new Store<StoreKeys>({
+  name: 'moneylove-ai',
+  encryptionKey: 'moneylove-ai-storage-key',
+  clearInvalidConfig: true
+})
 
 function encryptKey(key: string): string {
   if (!safeStorage.isEncryptionAvailable()) {
-    return `plain:${key}`
+    throw new Error('Cifratura locale non disponibile: impossibile salvare la chiave API')
   }
   const encrypted = safeStorage.encryptString(key)
   return encrypted.toString('base64')
 }
 
 function decryptKey(encrypted: string): string | null {
-  if (encrypted.startsWith('plain:')) return encrypted.slice(6)
+  if (encrypted.startsWith('plain:')) return null
   if (!safeStorage.isEncryptionAvailable()) return null
   return safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
 }
@@ -61,11 +66,9 @@ function getProvider(): AiProvider {
 function getModel(): string {
   const settings = getAllSettings()
   const provider = getProvider()
-  const model = settings.ai_model
-  if (model && (AI_PROVIDERS[provider].models.some((m) => m.id === model) || true)) {
-    return model || getDefaultModel(provider)
-  }
-  return getDefaultModel(provider)
+  const model = settings.ai_model?.trim()
+  if (!model || !/^[a-zA-Z0-9._-]+$/.test(model)) return getDefaultModel(provider)
+  return model
 }
 
 function createMessages(
@@ -307,6 +310,8 @@ async function generateGemini(apiKey: string, model: string, messages: AiMessage
 export function registerAiIpc(): void {
   ipcMain.handle('ai:saveApiKey', (_event, provider: AiProvider, key: string) => {
     try {
+      if (!AI_PROVIDERS[provider]) throw new Error('Provider non valido')
+      if (typeof key !== 'string' || key.length > 500) throw new Error('Chiave non valida')
       saveApiKey(provider, key)
     } catch (e) {
       console.error('ai:saveApiKey error', e)
@@ -316,6 +321,7 @@ export function registerAiIpc(): void {
 
   ipcMain.handle('ai:getApiKey', (_event, provider: AiProvider) => {
     try {
+      if (!AI_PROVIDERS[provider]) throw new Error('Provider non valido')
       return getApiKey(provider) ?? ''
     } catch (e) {
       console.error('ai:getApiKey error', e)
@@ -327,6 +333,10 @@ export function registerAiIpc(): void {
     'ai:sendMessage',
     async (event, message: string, history: AiMessage[], period: AiPeriod) => {
       try {
+        aiPeriodSchema.parse(period)
+        if (typeof message !== 'string' || message.length > 10000) throw new Error('Messaggio non valido')
+        if (!Array.isArray(history) || history.length > 100) throw new Error('Storia non valida')
+
         const provider = getProvider()
         const apiKey = getApiKey(provider)
         if (!apiKey) throw new Error(`Chiave API non configurata per ${AI_PROVIDERS[provider].label}`)
@@ -353,6 +363,7 @@ export function registerAiIpc(): void {
 
   ipcMain.handle('ai:generateInsight', async (_event, period: AiPeriod) => {
     try {
+      aiPeriodSchema.parse(period)
       const provider = getProvider()
       const apiKey = getApiKey(provider)
       if (!apiKey) return ''

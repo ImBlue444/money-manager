@@ -20,7 +20,11 @@ import type { BillingCycle, Subscription } from '../src/types'
 
 const store = new Store<{
   windowBounds: { width: number; height: number; x?: number; y?: number }
-}>()
+}>({
+  name: 'moneylove-window',
+  encryptionKey: 'moneylove-window-storage-key',
+  clearInvalidConfig: true
+})
 
 let mainWindow: BrowserWindow | null = null
 
@@ -36,7 +40,7 @@ function createWindow(): void {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   })
 
@@ -47,6 +51,18 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
+
+  const csp = app.isPackaged
+    ? "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.frankfurter.app; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';"
+    : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api.frankfurter.app http://localhost:* ws://localhost:*; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';"
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp]
+      }
+    })
+  })
 
   mainWindow.on('close', () => {
     if (mainWindow) {
